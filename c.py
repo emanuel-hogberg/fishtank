@@ -74,13 +74,16 @@ print("found all positions!")
 for n in tile_sprites:
     if n.tile.value != 7:
         game.all_texts.append(sp.DieText(n))
-    # print("{} value: {}".format(n.tile.name, n.tile.value))
-# s.draw()
 
 game.all_texts.append(sp.MouseText('hej', 'Comic Sans MS', 30))
 
 game.game_state = gamestates.PlaceTownState(tile_sprites, game)
 def_board.InitAllCornerPositions()
+
+for harbour in def_board.harbours:
+    harbour.sprite = sp.SHarbour(harbour)
+    game.all_sprites_list.add(harbour.sprite)
+    game.sprites_background.add(harbour.sprite)
 
 run = True
 while run:

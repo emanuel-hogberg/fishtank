@@ -16,6 +16,13 @@ class CatanGraphicsDefaults:
     die_text_pos_y = 0.2
     pointer_size = 0.1 * e
 
+    harbour_length_horizontal = e * 0.9 * 0.5
+    harbour_length_vertical = e * 0.9
+    harbour_x_offset = (e * 0.5 - harbour_length_horizontal) / 2
+    harbour_y_offset = (e - harbour_length_vertical) / 2
+    harbour_width = e * 0.04
+    harbour_board_offset = e * 0.03
+
     def __init__(self):
         self.land_colors = LandColor()
 
@@ -129,18 +136,55 @@ class SBandit(SWithinTile):
 
 class SEdge(CatanSprites):
 
-    def __init__(self, color):
+    def __init__(self):
         super().__init__()
         
         self.image = game.Surface([self.defs.e, self.defs.e])
-        self.image.fill(color)
+        self.image.fill(self.color)
 
 class SRoad(SEdge):
 
-    def __init__(self, player_color):
-        super().__init__(player_color)
+    def __init__(self):
+        super().__init__()
         # eller ändra till self.image.surface.y *= 0.2
         self.image = game.Surface([self.defs.e, self.defs.e * 0.2])
+
+class SHarbour(SEdge):
+    
+    def __init__(self, harbour):
+        self.harbour = harbour
+        super().__init__()
+
+        length = self.defs.harbour_length_horizontal
+        width = self.defs.harbour_width
+        horizontal = True
+        if harbour.edge_id == 1 or harbour.edge_id == 4:
+            horizontal = False
+            length = self.defs.harbour_length_vertical
+        self.image = game.Surface([length if horizontal else width, width if horizontal else length])
+        self.image.fill(self.defs.land_colors.color(harbour.type))
+
+        # set location based on tile position and corner
+        corner = harbour.edge_id
+        if corner == 2 or corner == 3 or corner == 4:
+            corner += 1
+        pos = harbour.tile.corners[corner].position
+        x_offset = 0
+        y_offset = 0
+        
+        if harbour.edge_id == 1 and harbour.tile.edges[1] is None:
+            x_offset += self.defs.harbour_board_offset
+        if harbour.edge_id == 4 and harbour.tile.edges[4] is None:
+            x_offset -= self.defs.harbour_board_offset + self.defs.harbour_width
+        if harbour.edge_id == 0 and harbour.tile.edges[0] is None or harbour.edge_id == 5 and harbour.tile.edges[5] is None:
+            y_offset -= self.defs.harbour_board_offset + self.defs.harbour_width
+        if harbour.edge_id == 2 and harbour.tile.edges[2] is None or harbour.edge_id == 3 and harbour.tile.edges[3] is None:
+            y_offset += self.defs.harbour_board_offset
+        if horizontal:
+            x_offset += self.defs.harbour_x_offset
+        else:
+            y_offset += self.defs.harbour_y_offset
+        self.set_position(pos[0] + x_offset, pos[1] + y_offset)
 
 class Text:
     def __init__(self, text, font_name, size):

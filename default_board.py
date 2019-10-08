@@ -5,6 +5,7 @@ import random
 class BoardCreation():
     def __init__(self):
         self.all_corners = list()
+        self.harbours = list()
         self.defs = CatanGraphicsDefaults()
 
     def CreateTiles(self, num):
@@ -151,5 +152,16 @@ class DefaultBoard(BoardCreation):
                 direction = direction + 1 if direction < 5 else 0
             n = n.edges[direction]
         
+        # add harbours
+        harbour_locations = [
+            [(0, 5, Land.ANY), (1, 0, Land.WHEAT)],
+            [(0, 4, Land.WOOD), (3, 0, Land.STONE)],
+            [(4, 1, Land.ANY)],
+            [(0, 4, Land.BRICK), (3, 2, Land.SHEEP)],
+            [(0, 3, Land.ANY), (1, 2, Land.ANY)]]
+        for row in range(0, 5):
+            for location in harbour_locations[row]:
+                self.harbours.append(Harbour(tiles[row][location[0]], location[1], location[2]))
+
         self.CreateCorners(tiles)
         return tiles

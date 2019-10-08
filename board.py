@@ -65,6 +65,7 @@ class Tile:
         self.pirate = False
         # stile is the strite tile from sprites.py
         self.stile = None
+        self.harbour = None
     
     def neighbor(self, tile, direction):
         self.edges[direction.value] = tile
@@ -115,5 +116,12 @@ class Corner:
         return math.sqrt( (x - self.position[0]) ** 2 + (y - self.position[1]) ** 2)
 
 class Harbour:
-    def __init__(self):
-        self.type = Land.UNKNOWN # .ANY = the 1:3 trade
+    def __init__(self, tile, edge_id, land_type):
+        self.type = land_type # .ANY = the 1:3 trade
+        self.tile = tile
+        self.edge_id = edge_id
+        self.bridges = (edge_id, edge_id + 1 if edge_id < 5 else 0)
+        self.sprite = None
+
+        tile.harbour = self
+
