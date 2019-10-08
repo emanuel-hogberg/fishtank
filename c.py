@@ -8,7 +8,8 @@ import default_board
 import gamestates
 
 # Construct board
-tiles = default_board.DefaultBoard().create_board()
+def_board = default_board.DefaultBoard()
+tiles = def_board.create_board()
 
 print(reduce(lambda a, t: "{}, {}".format(a, str(len(t))), tiles, ""))
 
@@ -21,11 +22,12 @@ print(", ".join(map(lambda tile: str(tile), tiles)))
 print(", ".join(map(lambda tile: tile.description(), tiles[-2:])))
 
 # test sprites
-game = sp.GameView(gamestates.TestState())
+game = sp.GameView(None)
 
 tile_sprites = [sp.STile(t) for t in tiles] # list(map(lambda t: sp.STile(t), tiles))
 for sprite in tile_sprites:
     game.all_sprites_list.add(sprite)
+    game.sprites_background.add(sprite)
 
 # set tile positions
 def set_desert_pos(t):
@@ -72,10 +74,13 @@ print("found all positions!")
 for n in tile_sprites:
     if n.tile.value != 7:
         game.all_texts.append(sp.DieText(n))
-    print("{} value: {}".format(n.tile.name, n.tile.value))
+    # print("{} value: {}".format(n.tile.name, n.tile.value))
 # s.draw()
 
 game.all_texts.append(sp.MouseText('hej', 'Comic Sans MS', 30))
+
+game.game_state = gamestates.PlaceTownState(tile_sprites, game)
+def_board.InitAllCornerPositions()
 
 run = True
 while run:

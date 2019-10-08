@@ -1,17 +1,24 @@
 from board import *
+from sprites import CatanGraphicsDefaults
 import random
 
 class BoardCreation():
+    def __init__(self):
+        self.all_corners = list()
+        self.defs = CatanGraphicsDefaults()
+
     def CreateTiles(self, num):
         tiles = list()
         for i in range(num):
             tiles.append(Tile(i))
         
+        # set edges
         tiles[0].edges[1] = tiles[1]
         for i in range(1, num - 1):
             tiles[i].edges[1] = tiles[i + 1]
             tiles[i].edges[4] = tiles[i - 1]
         tiles[-1].edges[4] = tiles[-2]
+
         return tiles
 
     # given a row of tiles, add one row below it with one additional tile added.
@@ -49,9 +56,23 @@ class BoardCreation():
             SW(tiles[i+1], new_row[i])
         return new_row
 
+    def CreateCorners(self, tiles):
+        for tile_row in tiles:
+            for tile in tile_row:
+                for direction in range(6):
+                    i = 0
+                    if tile.corners[direction] is None:
+                        self.all_corners.append(Corner(tile, direction))
+                        i += 1
+                print("{} corners added.".format(i))
+    
+    def InitAllCornerPositions(self):
+        for c in self.all_corners:
+            c.init_corner_position(self.defs.e, self.defs.e)
+
 class DefaultBoard(BoardCreation):
 
-    # --012--
+    # --012-- <-- tile names
     # -34 56-
     # 78 9 ab
     # -cd ef-
@@ -129,6 +150,6 @@ class DefaultBoard(BoardCreation):
             if (n.edges[direction].value != -1):
                 direction = direction + 1 if direction < 5 else 0
             n = n.edges[direction]
-
-
+        
+        self.CreateCorners(tiles)
         return tiles

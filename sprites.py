@@ -3,14 +3,18 @@ from board import LandColor
 
 class CatanGraphicsDefaults:
 
-    screen_width = 700
-    screen_height = 400
+    screen_width = 900
+    screen_height = 800
 
-    r = 40.0 # main scaler
+    r = 80.0 # main scaler
     e = 1.0 * r
 
     vert_spacing = 30
     hor_spacing = 30
+
+    die_text_pos_x = 0.2
+    die_text_pos_y = 0.2
+    pointer_size = 0.1 * e
 
     def __init__(self):
         self.land_colors = LandColor()
@@ -27,6 +31,7 @@ class CatanSprites(game.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.color = (255, 0, 0)
         self.clicked = False
+        self.hover = False
 
     def update_size(self):
         self.image = game.Surface([self.defs.e, self.defs.e])
@@ -76,6 +81,23 @@ class STile(CatanSprites):
                 return True
         return False
 
+class SPointer(CatanSprites):
+    def __init__(self):
+        super().__init__()
+        
+        self.hide = True
+        self.color = (0, 0, 255)
+    
+        self.image = game.Surface([self.defs.pointer_size, self.defs.pointer_size])
+        self.image.fill(self.color)
+
+    def draw(self):
+        if not self.hide:
+            super().draw()
+    
+    def set_position(self, position):
+        (self.rect.x, self.rect.y) = position
+
 class SWithinTile(CatanSprites):
     
     def __init__(self, color):
@@ -122,6 +144,7 @@ class SRoad(SEdge):
 
 class Text:
     def __init__(self, text, font_name, size):
+        self.defs = CatanGraphicsDefaults()
         self.font = None
         self.surface = None
         self.font_name = font_name
@@ -154,7 +177,7 @@ class DieText(Text):
         super().__init__(stile.tile.value, 'Comic Sans MS', 16)
         if stile.tile.value == 6 or stile.tile.value == 8:
             self.color = (255, 0, 0)
-        (self.x, self.y) = (stile.rect.x, stile.rect.y)
+        (self.x, self.y) = (stile.rect.x + self.defs.e * self.defs.die_text_pos_x, stile.rect.y + self.defs.e * self.defs.die_text_pos_y)
 
 class KeyState:
     def __init__(self):
@@ -186,6 +209,8 @@ class GameView:
         self.defs = CatanGraphicsDefaults()
         # used for drawing the sprites.
         self.all_sprites_list = game.sprite.Group()
+        self.sprites_foreground = game.sprite.Group()
+        self.sprites_background = game.sprite.Group()
         self.mouse_pos = None
         self.mouse_x = None
         self.mouse_y = None
@@ -232,15 +257,17 @@ class GameView:
             # set all sprite clicked states
             for s in [s for s in self.all_sprites_list]:
                 s.clicked = False
-            if self.mouse_clicked:
-                for s in [s for s in self.all_sprites_list if s.rect.collidepoint(self.mouse_pos)]:
-                    s.clicked = True
+                s.hover = False
+            for s in [s for s in self.all_sprites_list if s.rect.collidepoint(self.mouse_pos)]:
+                s.clicked = self.mouse_clicked
+                s.hover = True
 
             self.game_state.update()
 
             # update and draw sprites
             self.all_sprites_list.update()
-            self.all_sprites_list.draw(screen)
+            self.sprites_background.draw(screen)
+            self.sprites_foreground.draw(screen)
 
             # update and draw texts
             [t.update(self) for t in self.all_texts]

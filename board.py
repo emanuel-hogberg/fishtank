@@ -1,4 +1,5 @@
 from enum import Enum
+import math
 
 class Land(Enum):
     WOOD = 1
@@ -75,18 +76,43 @@ class Tile:
     def description(self):
         return "{} [{}]".format(str(self), "".join(map(lambda neighbor: "-" if neighbor is None else str(neighbor.name), self.edges)))
 
+# A corner is based on a tile and a direction, e.g. 0 = upper corner from given tile
 class Corner:
     def __init__(self, tile, direction_int):
-        
+        self.tile = tile
+        self.direction_int = direction_int
+
         # find which tiles surround this corner.
         # direction_int is where the corner is situated:
-        #   5__0
-        # 4<    >1
-        #   3__2
-
+        #   ^0
+        # 5< >1
+        # 4< >2
+        #   v3
         self.tiles = [tile, \
-            tile.edges[direction_int], \
-            tile.edges[direction_int + 1 if direction_int < 5 else 0]]
+            tile.edges[direction_int - 1 if direction_int > 0 else 5], \
+            tile.edges[direction_int]]
+        self.tiles[0].corners[direction_int] = self
+        if not self.tiles[1] is None:
+            self.tiles[1].corners[direction_int + 2 if direction_int + 2 <= 5 else direction_int - 4]
+        if not self.tiles[2] is None:
+            self.tiles[2].corners[direction_int + 4 if direction_int + 4 <= 5 else direction_int - 2]
+        self.position = None
+
+    def init_corner_position(self, tile_width, tile_height):
+        stile = self.tile.stile
+        (tx, ty) = stile.rect.x, stile.rect.y
+        half_width = tile_width / 2
+        self.position = {
+            0: (tx + half_width, ty),
+            1: (tx + tile_width, ty),
+            2: (tx + tile_width, ty + tile_height),
+            3: (tx + half_width, ty + tile_height),
+            4: (tx, ty + tile_height),
+            5: (tx, ty)
+        }.get(self.direction_int)
+        
+    def distance_to_point(self, x, y):
+        return math.sqrt( (x - self.position[0]) ** 2 + (y - self.position[1]) ** 2)
 
 class Harbour:
     def __init__(self):
