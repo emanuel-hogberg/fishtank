@@ -23,11 +23,11 @@ print(", ".join(map(lambda tile: tile.description(), tiles[-2:])))
 
 # test sprites
 game = sp.GameView(None)
+z_bg = game.z_layers[0]
 
 tile_sprites = [sp.STile(t) for t in tiles] # list(map(lambda t: sp.STile(t), tiles))
 for sprite in tile_sprites:
-    game.all_sprites_list.add(sprite)
-    game.sprites_background.add(sprite)
+    game.AddSprite(sprite, z_bg)
 
 # set tile positions
 def set_desert_pos(t):
@@ -70,20 +70,26 @@ for col in range(5):
     y += y_step
     x = leftest
 
-print("found all positions!")
+# add die texts (dice texts, nothing violent nor German)
 for n in tile_sprites:
     if n.tile.value != 7:
         game.all_texts.append(sp.DieText(n))
 
 game.all_texts.append(sp.MouseText('hej', 'Comic Sans MS', 30))
 
-game.game_state = gamestates.PlaceTownState(tile_sprites, game)
+# set players and initial game state
+scores = gamestates.Scores([
+    gamestates.Player((255, 0, 0), "Emanuel"), 
+    gamestates.Player((0, 255, 0), "Ellen"), 
+    gamestates.Player((0, 0, 255), "Lotta")])
+print("{} begins.".format(scores.RandomStartingPlayer().name))
+game.game_state = gamestates.MetaPlaceInitialTowns(game, scores.players, tile_sprites).InitialState()
+
 def_board.InitAllCornerPositions()
 
 for harbour in def_board.harbours:
     harbour.sprite = sp.SHarbour(harbour)
-    game.all_sprites_list.add(harbour.sprite)
-    game.sprites_background.add(harbour.sprite)
+    game.AddSprite(harbour.sprite, z_bg)
 
 run = True
 while run:

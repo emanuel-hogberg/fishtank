@@ -82,6 +82,9 @@ class Corner:
     def __init__(self, tile, direction_int):
         self.tile = tile
         self.direction_int = direction_int
+        self.position = None
+        self.town = None
+        self.neighbor_corners = list()
 
         # find which tiles surround this corner.
         # direction_int is where the corner is situated:
@@ -94,12 +97,11 @@ class Corner:
             tile.edges[direction_int]]
         self.tiles[0].corners[direction_int] = self
         if not self.tiles[1] is None:
-            self.tiles[1].corners[direction_int + 2 if direction_int + 2 <= 5 else direction_int - 4]
+            self.tiles[1].corners[direction_int + 2 if direction_int + 2 <= 5 else direction_int - 4] = self
         if not self.tiles[2] is None:
-            self.tiles[2].corners[direction_int + 4 if direction_int + 4 <= 5 else direction_int - 2]
-        self.position = None
+            self.tiles[2].corners[direction_int + 4 if direction_int + 4 <= 5 else direction_int - 2] = self        
 
-    def init_corner_position(self, tile_width, tile_height):
+    def InitCornerPosition(self, tile_width, tile_height):
         stile = self.tile.stile
         (tx, ty) = stile.rect.x, stile.rect.y
         half_width = tile_width / 2
@@ -111,7 +113,31 @@ class Corner:
             4: (tx, ty + tile_height),
             5: (tx, ty)
         }.get(self.direction_int)
+    
+    def InitCornerNeighbors(self):
         
+        # quick and dirty implementation
+        def FindNeighborCorners(this_corner, tile, found_neighbors):
+            this_index = -1
+            for i in range(0, len(tile.corners)):
+                if tile.corners[i] == this_corner:
+                    this_index = i
+                    break
+            def AddIfNotIn(tile, index, found_neighbors):
+                if not tile.corners[index] is None:
+                    if not tile.corners[index] in found_neighbors:
+                        found_neighbors.append(tile.corners[index])
+            
+            AddIfNotIn(tile, this_index - 1 if this_index > 0 else 5, found_neighbors)
+            AddIfNotIn(tile, this_index + 1 if this_index < 5 else 0, found_neighbors)
+            return found_neighbors
+
+        self.neighbor_corners = FindNeighborCorners(self, self.tiles[0], self.neighbor_corners)
+        if not self.tiles[1] is None:
+            self.neighbor_corners = FindNeighborCorners(self, self.tiles[1], self.neighbor_corners)
+        if not self.tiles[2] is None:
+            self.neighbor_corners = FindNeighborCorners(self, self.tiles[2], self.neighbor_corners)
+
     def distance_to_point(self, x, y):
         return math.sqrt( (x - self.position[0]) ** 2 + (y - self.position[1]) ** 2)
 

@@ -16,6 +16,16 @@ class CatanGraphicsDefaults:
     die_text_pos_y = 0.2
     pointer_size = 0.1 * e
 
+    town_width = 0.23 * e
+    town_height = 0.23 * e
+    town_x_offset = town_width / 2
+    town_y_offset = town_height / 2
+
+    city_width = 0.3 * e
+    city_height = 0.3 * e
+    city_x_offset = town_width / 2
+    city_y_offset = town_height / 2
+
     harbour_length_horizontal = e * 0.9 * 0.5
     harbour_length_vertical = e * 0.9
     harbour_x_offset = (e * 0.5 - harbour_length_horizontal) / 2
@@ -25,6 +35,11 @@ class CatanGraphicsDefaults:
 
     def __init__(self):
         self.land_colors = LandColor()
+
+class ZLayer:
+    def __init__(self, name, z):
+        self.name = name
+        self.z = z
 
 class CatanSprites(game.sprite.Sprite):
 
@@ -39,6 +54,10 @@ class CatanSprites(game.sprite.Sprite):
         self.color = (255, 0, 0)
         self.clicked = False
         self.hover = False
+        self.image = game.Surface([self.defs.e, self.defs.e])
+        self.image.fill((0, 0, 0))
+        self.z_layer = None
+        self.removed = False
 
     def update_size(self):
         self.image = game.Surface([self.defs.e, self.defs.e])
@@ -46,7 +65,8 @@ class CatanSprites(game.sprite.Sprite):
         self.height = self.defs.e
     
     def draw(self):
-        game.draw.ellipse(self.image, self.color, [0, 0, self.width, self.height])
+        if not self.removed:
+            game.draw.ellipse(self.image, self.color, [0, 0, self.width, self.height])
 
     def set_position(self, x, y):
         (self.rect.x, self.rect.y) = (x, y)
@@ -105,6 +125,28 @@ class SPointer(CatanSprites):
     def set_position(self, position):
         (self.rect.x, self.rect.y) = position
 
+class SCorner(CatanSprites):
+    
+    def InitColorAndSize(self, color, width, height):
+        self.image = game.Surface([width, height])
+        self.image.fill(color)
+
+class STown(SCorner):
+    
+    def __init__(self, player_color, corner):
+        super().__init__()
+        self.InitColorAndSize(player_color, self.defs.town_width, self.defs.town_height)
+
+        self.player_color = player_color
+        self.corner = corner
+        corner.town = self
+        self.set_position(corner.position[0] - self.defs.town_x_offset, corner.position[1] - self.defs.town_y_offset)
+        self.is_city = False
+
+    def UpgradeToCity(self):
+        self.InitColorAndSize(self.player_color, self.defs.city_width, self.defs.city_height)
+        self.set_position(self.corner.position[0] - self.defs.city_x_offset, self.corner.position[1] - self.defs.city_y_offset)
+
 class SWithinTile(CatanSprites):
     
     def __init__(self, color):
@@ -112,22 +154,6 @@ class SWithinTile(CatanSprites):
         
         self.image = game.Surface([self.defs.e, self.defs.e])
         self.image.fill(color)
-
-
-class STown(SWithinTile):
-    
-    def __init__(self, player_color, corner):
-        super().__init__(player_color)
-
-        self.player_color = player_color
-        self.corner = corner
-
-class SCity(SWithinTile):
-    
-    def __init__(self, stown):
-        super().__init__(stown.color)
-
-        self.town
 
 class SBandit(SWithinTile):
     
@@ -197,6 +223,7 @@ class Text:
         self.color = (0, 0, 0)
         self.x = 0
         self.y = 0
+        self.removed = False
     
     def update_text(self, text):
         self.text = text
@@ -210,7 +237,8 @@ class Text:
         self.update_text(self.text)
 
     def draw(self, screen):
-        screen.blit(self.surface, (self.x, self.y))
+        if not self.removed:
+            screen.blit(self.surface, (self.x, self.y))
 
 class MouseText(Text):
     def update(self, gameview):
@@ -252,9 +280,9 @@ class GameView:
     def __init__(self, starting_state):
         self.defs = CatanGraphicsDefaults()
         # used for drawing the sprites.
-        self.all_sprites_list = game.sprite.Group()
-        self.sprites_foreground = game.sprite.Group()
-        self.sprites_background = game.sprite.Group()
+        self.all_sprites = game.sprite.Group()
+        # self.sprites_foreground = game.sprite.Group()
+        # self.sprites_background = game.sprite.Group()
         self.mouse_pos = None
         self.mouse_x = None
         self.mouse_y = None
@@ -263,11 +291,32 @@ class GameView:
         self.all_texts = []
         self.exit_message = ""
         self.game_state = starting_state
+        self.z_layers = [
+            ZLayer("Board", 0),
+            ZLayer("Constructs", 1),
+            ZLayer("Front", 2)
+        ]
+        self.z_layer_groups = dict(map(lambda z: (z, game.sprite.Group()), self.z_layers))
     
+    def AddSprite(self, sprite, z_layer):
+        self.all_sprites.add(sprite)
+        if isinstance(z_layer, int):
+            sprite.z_layer = list(filter(lambda z: z.z == z_layer, self.z_layers))[0]
+        elif isinstance(z_layer, str):
+            sprite.z_layer = list(filter(lambda z: z.name == z_layer, self.z_layers))[0]
+        elif isinstance(z_layer, ZLayer):
+            sprite.z_layer = z_layer
+        else:
+            raise Exception("Oh no you need to provide a z_layer from the gameView.z_layer list! or str or int.")
+        self.z_layer_groups[sprite.z_layer].add(sprite)
+
     def run(self):
         game.init()
         screen = game.display.set_mode([self.defs.screen_width, self.defs.screen_height])
         game.font.init()
+
+        if any(filter(lambda sprite: sprite.z_layer is None, self.all_sprites)):
+            raise Exception("z_layer {} has not been added through gameView.AddSprite()!")
         
         keys = [KeyRestartEvent(), KeyQuitEvent()]
 
@@ -299,20 +348,20 @@ class GameView:
             [k.update(self) for k in keys]
             
             # set all sprite clicked states
-            for s in [s for s in self.all_sprites_list]:
+            for s in [s for s in self.all_sprites]:
                 s.clicked = False
                 s.hover = False
-            for s in [s for s in self.all_sprites_list if s.rect.collidepoint(self.mouse_pos)]:
+            for s in [s for s in self.all_sprites if s.rect.collidepoint(self.mouse_pos)]:
                 s.clicked = self.mouse_clicked
                 s.hover = True
 
             self.game_state.update()
 
             # update and draw sprites
-            self.all_sprites_list.update()
-            self.sprites_background.draw(screen)
-            self.sprites_foreground.draw(screen)
-
+            self.all_sprites.update()
+            for z in self.z_layer_groups:
+                self.z_layer_groups[z].draw(screen)
+            
             # update and draw texts
             [t.update(self) for t in self.all_texts]
             [t.draw(screen) for t in self.all_texts]

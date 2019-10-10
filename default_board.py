@@ -60,16 +60,20 @@ class BoardCreation():
     def CreateCorners(self, tiles):
         for tile_row in tiles:
             for tile in tile_row:
+                i = 0
                 for direction in range(6):
-                    i = 0
                     if tile.corners[direction] is None:
                         self.all_corners.append(Corner(tile, direction))
                         i += 1
-                print("{} corners added.".format(i))
+        #        print("{} corners added.".format(i))
+        for tile_row in tiles:
+            for tile in tile_row:
+                for corner in tile.corners:
+                    corner.InitCornerNeighbors()   
     
     def InitAllCornerPositions(self):
         for c in self.all_corners:
-            c.init_corner_position(self.defs.e, self.defs.e)
+            c.InitCornerPosition(self.defs.e, self.defs.e)
 
 class DefaultBoard(BoardCreation):
 
@@ -137,6 +141,8 @@ class DefaultBoard(BoardCreation):
         # --ghi--
         vals = list([10, 2, 9, 10, 8, 5, 11, 6, 5, 8, 9, 12, 6, 4, 3, 4, 3, 11])
         i = random.randint(0, len(vals))
+        if i % 2 == 1: # i should be divisible by 2, otherwise 6 and 8 will end up next to eachother.
+            i = i + 1 if i < len(vals) - 1 else 0
         direction = 1
         n = tiles[0][0]
         while len(vals) > 0:
