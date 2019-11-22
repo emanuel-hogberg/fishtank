@@ -1,6 +1,7 @@
 import sprites
 import random
 import math
+import cards
 
 class GameState:
     def __init__(self, board_stiles, gameview, meta_state):
@@ -44,6 +45,13 @@ class MetaPlaceInitialTowns(MetaState):
         if len(self.place_town_states) == 0:
             self.gameview.game_state = MetaPlayerTurn(self.gameview, self.players, self.board_stiles).InitialState()
         else:
+            # add initial cards.
+            if not self.gameview.game_state.player.cards:
+                starting_cards = list()
+                for tile in self.gameview.game_state.placed_town.corner.tiles:
+                    if tile:
+                        starting_cards.append(cards.LandCard(tile.type))
+                self.gameview.game_state.player.cards = starting_cards
             self.gameview.game_state = self.ActivateState(self.place_town_states.pop(0))
 
     def InitialState(self):

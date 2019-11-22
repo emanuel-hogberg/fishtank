@@ -151,4 +151,3 @@ class Harbour:
         self.sprite = None
 
         tile.harbour = self
-
