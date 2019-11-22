@@ -7,6 +7,7 @@ class BoardCreation():
         self.all_corners = list()
         self.harbours = list()
         self.defs = CatanGraphicsDefaults()
+        self.tiles = list()
 
     def CreateTiles(self, num):
         tiles = list()
@@ -74,6 +75,11 @@ class BoardCreation():
     def InitAllCornerPositions(self):
         for c in self.all_corners:
             c.InitCornerPosition(self.defs.e, self.defs.e)
+    
+    def InitAllEdgePositions(self):
+        for tile_row in self.tiles:
+            for tile in tile_row:
+                tile.stile.InitEdgePositions()
 
 class DefaultBoard(BoardCreation):
 
@@ -170,4 +176,5 @@ class DefaultBoard(BoardCreation):
                 self.harbours.append(Harbour(tiles[row][location[0]], location[1], location[2]))
 
         self.CreateCorners(tiles)
+        self.tiles = tiles
         return tiles

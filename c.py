@@ -86,6 +86,7 @@ print("{} begins.".format(scores.RandomStartingPlayer().name))
 game.game_state = gamestates.MetaPlaceInitialTowns(game, scores.players, tile_sprites).InitialState()
 
 def_board.InitAllCornerPositions()
+def_board.InitAllEdgePositions()
 
 for harbour in def_board.harbours:
     harbour.sprite = sp.SHarbour(harbour)

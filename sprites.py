@@ -47,7 +47,7 @@ class CatanSprites(game.sprite.Sprite):
         super().__init__()
         WHITE = (255, 255, 255)
         self.defs = CatanGraphicsDefaults()
-        self.update_size()
+        self.update_size(self.defs.e, self.defs.e)
         self.image.fill(WHITE)
         self.image.set_colorkey(WHITE)
         self.rect = self.image.get_rect()
@@ -57,12 +57,11 @@ class CatanSprites(game.sprite.Sprite):
         self.image = game.Surface([self.defs.e, self.defs.e])
         self.image.fill((0, 0, 0))
         self.z_layer = None
-        self.removed = False
 
-    def update_size(self):
-        self.image = game.Surface([self.defs.e, self.defs.e])
-        self.width = self.defs.e
-        self.height = self.defs.e
+    def update_size(self, width, height):
+        self.image = game.Surface([width, height])
+        self.width = width
+        self.height = height
     
     def draw(self):
         if not self.removed:
@@ -79,18 +78,22 @@ class STile(CatanSprites):
         tile.stile = self
         self.image = game.Surface([self.defs.e, self.defs.e])
         self.image.fill(self.defs.land_colors.color(tile.type))
+        self.edge_positions = [None] * 6
     
     def has_position(self):
         return not (self.rect.x == self.rect.y == 0)
 
     # find the position of one of the neighbors and calculate this tile's position from that
+    # - not used, not really working!
     def set_position_from_neighbors(self):
         if self.has_position():
+            self.InitEdgePositions()
             return True
         
         vert_spacing = CatanGraphicsDefaults.vert_spacing
         hor_spacing = CatanGraphicsDefaults.hor_spacing
 
+        found = False
         for i in range(0, len(self.tile.edges)):
             n = self.tile.edges[i]
             if n is None:
@@ -105,8 +108,29 @@ class STile(CatanSprites):
                     5: (vert_spacing, hor_spacing)
                 }.get(i)
                 self.set_position(n.stile.rect.x + dx, n.stile.rect.y + dy)
-                return True
-        return False
+                found = True
+                break
+        if found:
+            self.InitEdgePositions()
+        return found
+    
+    def InitEdgePositions(self):
+        half_width = self.width / 2
+        quarter_width = self.width / 4
+        half_height = self.height / 2
+        
+        if not self.edge_positions[5] is None:
+            return
+        
+        self.edge_positions[5] = (self.rect.x + quarter_width, self.rect.y)
+        self.edge_positions[0] = (self.rect.x + half_width + quarter_width, self.rect.y)
+        self.edge_positions[1] = (self.rect.x + self.width, self.rect.y + half_height)
+        self.edge_positions[2] = (self.rect.x + self.width - quarter_width, self.rect.y + self.height)
+        self.edge_positions[3] = (self.rect.x + half_width - quarter_width, self.rect.y + self.height)
+        self.edge_positions[4] = (self.rect.x, self.rect.y + half_height)
+    
+    def DistanceToEdge(self, x, y, edge_index):
+        return 
 
 class SPointer(CatanSprites):
     def __init__(self):
@@ -123,7 +147,7 @@ class SPointer(CatanSprites):
             super().draw()
     
     def set_position(self, position):
-        (self.rect.x, self.rect.y) = position
+        (self.rect.x, self.rect.y) = (position[0], position[1])
 
 class SCorner(CatanSprites):
     
@@ -162,56 +186,65 @@ class SBandit(SWithinTile):
 
 class SEdge(CatanSprites):
 
-    def __init__(self):
+    def __init__(self, length_horizontal, length_vertical, width, edge_id, color, \
+            tile, board_offset, board_x_offset, board_y_offset):
         super().__init__()
         
         self.image = game.Surface([self.defs.e, self.defs.e])
         self.image.fill(self.color)
 
+        length = length_horizontal
+        width = width
+        horizontal = True
+        if edge_id == 1 or edge_id == 4:
+            horizontal = False
+            length = length_vertical
+        self.image = game.Surface([length if horizontal else width, width if horizontal else length])
+        self.image.fill(color)
+        self.color = color
+
+        # set location based on tile position and corner
+        corner = edge_id
+        if corner == 2 or corner == 3 or corner == 4:
+            corner += 1
+        pos = tile.corners[corner].position
+        x_offset = 0
+        y_offset = 0
+        
+        if edge_id == 1 and tile.edges[1] is None:
+            x_offset += board_offset
+        if edge_id == 4 and tile.edges[4] is None:
+            x_offset -= board_offset + width
+        if edge_id == 0 and tile.edges[0] is None or edge_id == 5 and tile.edges[5] is None:
+            y_offset -= board_offset + width
+        if edge_id == 2 and tile.edges[2] is None or edge_id == 3 and tile.edges[3] is None:
+            y_offset += board_offset
+        if horizontal:
+            x_offset += board_x_offset
+        else:
+            y_offset += board_y_offset
+        self.set_position(pos[0] + x_offset, pos[1] + y_offset)
+
 class SRoad(SEdge):
 
-    def __init__(self):
-        super().__init__()
-        # eller ändra till self.image.surface.y *= 0.2
-        self.image = game.Surface([self.defs.e, self.defs.e * 0.2])
+    def __init__(self, tile, player_color, edge_id):
+        defs = CatanGraphicsDefaults()
+        super().__init__(defs.harbour_length_horizontal, defs.harbour_length_vertical, \
+            defs.harbour_width, edge_id, player_color, \
+                tile, defs.harbour_board_offset, defs.harbour_x_offset, defs.harbour_y_offset)
+        
+        # self.image = game.Surface([self.defs.e, self.defs.e * 0.2])
+        tile.roads[edge_id] = self
 
 class SHarbour(SEdge):
     
     def __init__(self, harbour):
+        defs = CatanGraphicsDefaults()
+        super().__init__(defs.harbour_length_horizontal, defs.harbour_length_vertical, \
+            defs.harbour_width, harbour.edge_id, defs.land_colors.color(harbour.type), \
+                harbour.tile, defs.harbour_board_offset, defs.harbour_x_offset, defs.harbour_y_offset)
+
         self.harbour = harbour
-        super().__init__()
-
-        length = self.defs.harbour_length_horizontal
-        width = self.defs.harbour_width
-        horizontal = True
-        if harbour.edge_id == 1 or harbour.edge_id == 4:
-            horizontal = False
-            length = self.defs.harbour_length_vertical
-        self.image = game.Surface([length if horizontal else width, width if horizontal else length])
-        self.image.fill(self.defs.land_colors.color(harbour.type))
-
-        # set location based on tile position and corner
-        corner = harbour.edge_id
-        if corner == 2 or corner == 3 or corner == 4:
-            corner += 1
-        pos = harbour.tile.corners[corner].position
-        x_offset = 0
-        y_offset = 0
-        
-        if harbour.edge_id == 1 and harbour.tile.edges[1] is None:
-            x_offset += self.defs.harbour_board_offset
-        if harbour.edge_id == 4 and harbour.tile.edges[4] is None:
-            x_offset -= self.defs.harbour_board_offset + self.defs.harbour_width
-        if harbour.edge_id == 0 and harbour.tile.edges[0] is None or harbour.edge_id == 5 and harbour.tile.edges[5] is None:
-            y_offset -= self.defs.harbour_board_offset + self.defs.harbour_width
-        if harbour.edge_id == 2 and harbour.tile.edges[2] is None or harbour.edge_id == 3 and harbour.tile.edges[3] is None:
-            y_offset += self.defs.harbour_board_offset
-        if horizontal:
-            x_offset += self.defs.harbour_x_offset
-        else:
-            y_offset += self.defs.harbour_y_offset
-        self.set_position(pos[0] + x_offset, pos[1] + y_offset)
-
 class Text:
     def __init__(self, text, font_name, size):
         self.defs = CatanGraphicsDefaults()
@@ -310,6 +343,10 @@ class GameView:
             raise Exception("Oh no you need to provide a z_layer from the gameView.z_layer list! or str or int.")
         self.z_layer_groups[sprite.z_layer].add(sprite)
 
+    def RemoveSprite(self, sprite, z_layer):
+        self.all_sprites.remove(sprite)
+        self.z_layer_groups[sprite.z_layer].remove(sprite)
+        
     def run(self):
         game.init()
         screen = game.display.set_mode([self.defs.screen_width, self.defs.screen_height])

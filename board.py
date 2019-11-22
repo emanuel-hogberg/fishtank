@@ -52,6 +52,7 @@ class Tile:
         # 4|  |1
         #  3\/2
         self.edges = [None] * 6
+        self.roads = [None] * 6
 
         # Corners clockwise
         #   ^0
