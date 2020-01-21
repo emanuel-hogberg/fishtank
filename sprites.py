@@ -314,11 +314,21 @@ class KeyMainPhaseEvents(KeyState):
         super().__init__()
         self.knight = False
         self.roll = False
+        self.next_player = False
+        self.build_road = False
+        self.build_town = False
+        self.build_city = False
+        self.buy_development_card = False
     
     def update(self, gameview):
         super().update(gameview)
         self.knight = self.keys[game.K_k]
         self.roll = self.keys[game.K_SPACE]
+        self.next_player = self.keys[game.K_n]
+        self.build_road = self.keys[game.K_r]
+        self.build_town = self.keys[game.K_t]
+        self.build_city = self.keys[game.K_c]
+        self.buy_development_card = self.keys[game.K_d]
 
 class GameView:
     def __init__(self, starting_state):

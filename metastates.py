@@ -1,5 +1,6 @@
 import gamestates
-
+import sprites
+import cards
 
 class MetaState():
     def __init__(self, gameview):
@@ -32,17 +33,16 @@ class MetaPlaceInitialTowns(MetaState):
             self.gameview.game_state = MetaPlayerTurn(self.gameview, self.players, self.board_stiles).InitialState()
         else:
             # add initial cards.
-            if not self.gameview.game_state.player.cards:
+            if self.gameview.game_state.player.cards.Sum() == 0:
                 starting_cards = list()
                 for tile in self.gameview.game_state.placed_town.corner.tiles:
                     if tile:
                         starting_cards.append(cards.LandCard(tile.type))
-                self.gameview.game_state.player.cards = starting_cards
+                self.gameview.game_state.player.cards.AddCardsToHand(starting_cards)
             self.gameview.game_state = self.ActivateState(self.place_town_states.pop(0))
 
     def InitialState(self):
         return self.ActivateState(self.place_town_states.pop(0))
-
 
 class MetaPlayerTurn(MetaState):
     def __init__(self, gameview, players, board_stiles):
@@ -52,6 +52,9 @@ class MetaPlayerTurn(MetaState):
         self.rolled_dice = None
 
         self.current_player = 0
+        self.current_hand_text = sprites.Text('current hand', 'Comic Sans MS', 20)
+        (self.current_hand_text.x, self.current_hand_text.y) = (36, 600)
+        self.gameview.all_texts.append(self.current_hand_text)
 
         self.main_phases = list(map(lambda player: gamestates.PlayerMainPhaseState(board_stiles, gameview, self, player, self.gameview.main_phase_key_events), self.players))
     
@@ -62,6 +65,7 @@ class MetaPlayerTurn(MetaState):
         # if player won:
         #   game over state
 
+        self.main_phases[self.current_player].DeactivateState()
         self.current_player = self.current_player + 1 if self.current_player < len(self.players) - 1 else 0
         return self.InitialState()
 

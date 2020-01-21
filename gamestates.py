@@ -205,28 +205,54 @@ class PlayerMainPhaseState(GameState):
         self.status_text = None
         self.player = player
         self.keys = keys
+        self.rolled = False
     
     def ActivateState(self):
         if self.status_text:
             self.status_text.removed = False
         else:
-            self.status_text = sprites.Text('{}''s turn! Spacebar = roll dice, b = use a knight card and move bandits.'.format(self.player.name), 'Comic Sans MS', 30)
+            self.status_text = sprites.Text('{}''s turn! Spacebar = roll dice, b = use a knight card and move bandits.'.format(self.player.name), 'Comic Sans MS', 20)
             self.status_text.color = self.player.color
-            (self.status_text.x, self.status_text.y) = (230, 3)
             self.gameview.all_texts.append(self.status_text)
+        
+        (self.status_text.x, self.status_text.y) = (230, 3)
+        self.meta_state.current_hand_text.color = self.player.color
+        self.PrintPlayerHand()
+        self.rolled = False
 
     def DeactivateState(self):
-        self.status_text.removed = True        
-    
+        self.status_text.y -= 20
+
+    def PrintPlayerHand(self):
+        new_text = "{0}'s hand: {1}{2}{3}".format(self.player.name, self.player.cards.Print(), "\r\n", self.player.dev_cards.Print())
+        self.meta_state.current_hand_text.update_text(new_text)
+
     def update(self):
-        # player turn: roll the dice or play knight (if no knight available, roll automatically)
-        if self.player.dev_cards.knights == 0 or self.keys.roll:
-            self.RollDice()
-            self.meta_state.NextState(self)
+
+        if not self.rolled:
+            
+            # player turn: roll the dice or play knight (if no knight available, roll automatically)
+            if self.player.dev_cards.knights == 0 or self.keys.roll:
+                self.RollDice()
+                self.status_text.update_text("Press N for next player.\n\r{0}".format(self.player.cards.PrintPossibilities()))
+                self.rolled = True
+        
+        else: # when rolled
+            if self.player.cards.CanBuildRoad() and self.keys.build_road:
+                pass
+            if self.player.cards.CanBuildTown() and self.keys.build_town:
+                pass
+            if self.player.cards.CanBuildCity() and self.keys.build_city:
+                pass
+            if self.player.cards.CanBuyDevCard() and self.keys.buy_development_card:
+                pass
+
+            if self.keys.next_player:
+                self.meta_state.NextState(self)
 
     def RollDice(self):
         value = self.meta_state.rolled_dice = random.randint(1, 6) + random.randint(1, 6)
-        self.status_text = "rolled {0}!".format(value)
+        self.status_text.update_text("rolled {0}!".format(value))
 
         # Hand out land cards
         if value != 7:
