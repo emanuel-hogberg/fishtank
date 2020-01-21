@@ -309,6 +309,17 @@ class KeyQuitEvent(KeyState):
             # trigger a QUIT event
             game.event.post(game.event.Event(game.QUIT))
 
+class KeyMainPhaseEvents(KeyState):
+    def __init__(self):
+        super().__init__()
+        self.knight = False
+        self.roll = False
+    
+    def update(self, gameview):
+        super().update(gameview)
+        self.knight = self.keys[game.K_k]
+        self.roll = self.keys[game.K_SPACE]
+
 class GameView:
     def __init__(self, starting_state):
         self.defs = CatanGraphicsDefaults()
@@ -321,6 +332,7 @@ class GameView:
         self.mouse_y = None
         self.mouse_clicked = False
         self.clicked_sprites = []
+        self.main_phase_key_events = KeyMainPhaseEvents()
         self.all_texts = []
         self.exit_message = ""
         self.game_state = starting_state
@@ -355,7 +367,7 @@ class GameView:
         if any(filter(lambda sprite: sprite.z_layer is None, self.all_sprites)):
             raise Exception("z_layer {} has not been added through gameView.AddSprite()!")
         
-        keys = [KeyRestartEvent(), KeyQuitEvent()]
+        keys = [KeyRestartEvent(), KeyQuitEvent(), self.main_phase_key_events]
 
         # Loop until the user clicks the close button.
         done = False

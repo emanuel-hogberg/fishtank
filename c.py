@@ -7,6 +7,7 @@ import random
 import default_board
 
 import gamestates
+import metastates
 
 # Construct board
 def_board = default_board.DefaultBoard()
@@ -84,7 +85,7 @@ scores = gamestates.Scores([
     gamestates.Player((0, 255, 0), "Ellen"), 
     gamestates.Player((0, 0, 255), "Lotta")])
 print("{} begins.".format(scores.RandomStartingPlayer().name))
-game.game_state = gamestates.MetaPlaceInitialTowns(game, scores.players, tile_sprites).InitialState()
+game.game_state = metastates.MetaPlaceInitialTowns(game, scores.players, tile_sprites).InitialState()
 
 def_board.InitAllCornerPositions()
 def_board.InitAllEdgePositions()

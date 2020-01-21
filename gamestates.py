@@ -2,6 +2,7 @@ import sprites
 import random
 import math
 import cards
+import metastates
 
 class GameState:
     def __init__(self, board_stiles, gameview, meta_state):
@@ -15,54 +16,37 @@ class GameState:
     def ActivateState(self):
         pass
 
-class MetaState():
-    def __init__(self, gameview):
-        self.gameview = gameview
-    
-    def NextState(self, previous_state):
-        self.gameview.game_state = None
+    def DeactivateState(self):
+        pass
 
-    def InitialState(self):
-        return None # override this and return AcivateState(<next state>)
+class Player:
+    def __init__(self, color, name):
+        self.color = color
+        self.name = name
+        self.cards = cards.LandCards()
+        self.dev_cards = cards.DevelopmentCards()
+        self.score = 0
+        self.ai = None
 
-    def ActivateState(self, state):
-        state.ActivateState()
-        return state
-
-# Opening of the game - each player places one town each etc.
-class MetaPlaceInitialTowns(MetaState):
-    def __init__(self, gameview, players, board_stiles):
-        super().__init__(gameview)
+class Scores:
+    def __init__(self, players):
         self.players = players
-        self.board_stiles = board_stiles
-        self.place_town_states = list()
-        for player in players + list(reversed(players)):
-            place_town = PlaceTownState(board_stiles, gameview, player, self)
-            self.place_town_states.append(place_town)
-            self.place_town_states.append(PlaceRoadState(board_stiles, gameview, player, self, place_town.placed_town))
+        self.towns = list()
+        self.player_with_longest_road = None
+        self.player_with_largest_army = None
     
-    def NextState(self, previous_state):
-        if len(self.place_town_states) == 0:
-            self.gameview.game_state = MetaPlayerTurn(self.gameview, self.players, self.board_stiles).InitialState()
-        else:
-            # add initial cards.
-            if not self.gameview.game_state.player.cards:
-                starting_cards = list()
-                for tile in self.gameview.game_state.placed_town.corner.tiles:
-                    if tile:
-                        starting_cards.append(cards.LandCard(tile.type))
-                self.gameview.game_state.player.cards = starting_cards
-            self.gameview.game_state = self.ActivateState(self.place_town_states.pop(0))
+    def RandomStartingPlayer(self):
+        starting_player = self.players[random.randint(0, len(self.players) - 1)]
+        while self.players[0] != starting_player:
+            self.players.append(self.players.pop(0))
+        return starting_player
 
-    def InitialState(self):
-        return self.ActivateState(self.place_town_states.pop(0))
-
-class MetaPlayerTurn(MetaState):
-    def __init__(self, gameview, players, board_stiles):
-        super().__init__(gameview)
-        self.players = players
-        self.board_stiles = board_stiles
-                
+    # work in progress
+    def CountScores(self):
+        for player in self.players:
+            player.score = len(list(filter(lambda town: town.player == player, self.towns))) + \
+                2 * len(list(filter(lambda town: town.is_city and town.player == player, self.towns))) + \
+                len(list(filter(lambda card: card == "1", player.dev_cards)))
 
 class PlaceTownState(GameState):
     def __init__(self, board_stiles, gameview, player, meta_state):
@@ -155,9 +139,6 @@ class PlaceRoadState(GameState):
                 closest_edge_id = distances[0][1][0]
                 closest_position = distances[0][1][1]
                 self.pointer.set_position(closest_position)
-                # self.status_text.update_text("{} [] {}, {} corners".format(
-                #     stile.tile.name, stile.tile.value,
-                #     sum(map(lambda c: 0 if c is None else 1, stile.tile.corners))))
                 
                 # clicked?
                 if stile.clicked:
@@ -210,32 +191,79 @@ class PlaceRoadState(GameState):
         # proximity to other player road then decides if it's ok or not.
         return ProximalRoadsBelongsToThisPlayer(stile.tile, h, j) or \
             (not neighbor_tile is None and ProximalRoadsBelongsToThisPlayer(neighbor_tile, hn, jn))
-        
-class Player:
-    def __init__(self, color, name):
-        self.color = color
-        self.name = name
-        self.cards = list()
-        self.dev_cards = list()
-        self.score = 0
-        self.ai = None
 
-class Scores:
-    def __init__(self, players):
-        self.players = players
-        self.towns = list()
-        self.player_with_longest_road = None
-        self.player_with_largest_army = None
+class PlayerRollDiceState(GameState):
+    def __init__(self, board_stiles, gameview, meta_state):
+        super().__init__(board_stiles, gameview, meta_state)
     
-    def RandomStartingPlayer(self):
-        starting_player = self.players[random.randint(0, len(self.players) - 1)]
-        while self.players[0] != starting_player:
-            self.players.append(self.players.pop(0))
-        return starting_player
+    def ActivateState(self):
+        pass
 
-    # work in progress
-    def CountScores(self):
-        for player in self.players:
-            player.score = len(list(filter(lambda town: town.player == player, self.towns))) + \
-                2 * len(list(filter(lambda town: town.is_city and town.player == player, self.towns))) + \
-                len(list(filter(lambda card: card == "1", player.dev_cards)))
+class PlayerMainPhaseState(GameState):
+    def __init__(self, board_stiles, gameview, meta_state, player, keys):
+        super().__init__(board_stiles, gameview, meta_state)
+        self.status_text = None
+        self.player = player
+        self.keys = keys
+    
+    def ActivateState(self):
+        if self.status_text:
+            self.status_text.removed = False
+        else:
+            self.status_text = sprites.Text('{}''s turn! Spacebar = roll dice, b = use a knight card and move bandits.'.format(self.player.name), 'Comic Sans MS', 30)
+            self.status_text.color = self.player.color
+            (self.status_text.x, self.status_text.y) = (230, 3)
+            self.gameview.all_texts.append(self.status_text)
+
+    def DeactivateState(self):
+        self.status_text.removed = True        
+    
+    def update(self):
+        # player turn: roll the dice or play knight (if no knight available, roll automatically)
+        if self.player.dev_cards.knights == 0 or self.keys.roll:
+            self.RollDice()
+            self.meta_state.NextState(self)
+
+    def RollDice(self):
+        value = self.meta_state.rolled_dice = random.randint(1, 6) + random.randint(1, 6)
+        self.status_text = "rolled {0}!".format(value)
+
+        # Hand out land cards
+        if value != 7:
+            for stile in filter(lambda stile: stile.tile.value == value, self.stiles):
+                corners_with_towns = list(filter(lambda corner: corner.town, stile.tile.corners))
+                if len(corners_with_towns) > 0:
+                    card = cards.LandCard(stile.tile.type)
+                    for corner in corners_with_towns:
+                        player = self.meta_state.GetPlayer(corner.town.player_color)
+                        player.cards.AddCardToHand(card)
+                        if corner.town.is_city:
+                            player.cards.AddCardToHand(card)
+
+class PlayerMoveBanditState(GameState):
+    def __init__(self, board_stiles, gameview, meta_state, player, rolled_seven):
+        super().__init__(board_stiles, gameview, meta_state)
+    
+        self.status_text = None
+        self.rolled_seven = rolled_seven
+        self.player = player
+    
+    def ActivateState(self):
+        self.status_text = sprites.Text('{} chooses another location for the bandits!'.format(self.player.name), 'Comic Sans MS', 30)
+        if self.rolled_seven:
+            self.status_text = sprites.Text('{} rolled a 7 and chooses another location for the bandits!'.format(self.player.name), 'Comic Sans MS', 30)
+        self.status_text.color = self.player.color
+        (self.status_text.x, self.status_text.y) = (230, 3)
+        self.gameview.all_texts.append(self.status_text)
+
+class PlayerStealCardState(GameState):
+    def __init__(self, board_stiles, gameview, meta_state, player):
+        super().__init__(board_stiles, gameview, meta_state)
+        self.status_text = None
+        self.player = player
+    
+    def ActivateState(self):
+        self.status_text = sprites.Text('{} chooses a player to steal a card from.'.format(self.player.name), 'Comic Sans MS', 30)
+        self.status_text.color = self.player.color
+        (self.status_text.x, self.status_text.y) = (230, 3)
+        self.gameview.all_texts.append(self.status_text)
