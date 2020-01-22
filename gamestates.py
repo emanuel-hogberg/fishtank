@@ -223,8 +223,15 @@ class PlayerMainPhaseState(GameState):
     def DeactivateState(self):
         if self.status_text:
             self.status_text.y -= 20
-            self.status_text.update_text("{0} rolled {1}. Turn over." self.player.name, self.rolled_vaule)
+            self.status_text.update_text("{0} rolled {1}. Turn over.".format(self.player.name, self.rolled_vaule))
         self.rolled = False
+
+    def UpdatePlayerState(self):
+        self.PrintPlayerHand()
+        self.PrintPlayerOptions()
+
+    def PrintPlayerOptions(self):
+        self.status_text.update_text("{0} rolled {1}! Press N for next player. {2}".format(self.player.name, self.rolled_value, self.player.cards.PrintPossibilities()))
 
     def PrintPlayerHand(self):
         new_text = "{0}'s hand: {1}{2}{3}".format(self.player.name, self.player.cards.Print(), "\r\n", self.player.dev_cards.Print())
@@ -237,20 +244,35 @@ class PlayerMainPhaseState(GameState):
             # player turn: roll the dice or play knight (if no knight available, roll automatically)
             if self.player.dev_cards.knights == 0 or self.keys.roll:
                 self.rolled_value = self.RollDice()
-                self.status_text.update_text("{0} rolled {1}! Press N for next player. {2}".format(self.player.name, self.rolled_value, self.player.cards.PrintPossibilities()))
+                self.PrintPlayerOptions()
                 self.rolled = True
         
         if self.rolled:
 
             # build something
             if self.player.cards.CanBuildRoad() and self.keys.build_road:
-                pass
+                self.player.cards.brick -= 1
+                self.player.cards.wood -= 1
+                self.meta_state.TriggerPlayerActionState(PlaceRoadState(self.stiles, self.gameview, self.player, self.meta_state, None))
+                self.UpdatePlayerState()
             if self.player.cards.CanBuildTown() and self.keys.build_town:
-                pass
+                self.player.cards.brick -= 1
+                self.player.cards.wood -= 1
+                self.player.cards.wheat -= 1
+                self.player.cards.sheep
+                self.meta_state.TriggerPlayerActionState(PlaceTownState(self.stiles, self.gameview, self.player, self.meta_state))
+                self.UpdatePlayerState()
             if self.player.cards.CanBuildCity() and self.keys.build_city:
-                pass
+                self.player.cards.stone -= 3
+                self.player.cards.wheat -= 2
+                #self.meta_state.TriggerPlayerActionState(ChooseCityState(self.stiles, self.gameview, self.player, self, None))
+                self.UpdatePlayerState()
             if self.player.cards.CanBuyDevCard() and self.keys.buy_development_card:
-                pass
+                self.player.cards.stone -= 1
+                self.player.cards.wheat -= 1
+                self.player.cards.sheep -= 1
+                # buy dev card (not implemented)
+                self.UpdatePlayerState()
 
             # use dev cards
 

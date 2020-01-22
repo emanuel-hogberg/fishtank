@@ -13,15 +13,15 @@ import metastates
 def_board = default_board.DefaultBoard()
 tiles = def_board.create_board()
 
-print(reduce(lambda a, t: "{}, {}".format(a, str(len(t))), tiles, ""))
+# print(reduce(lambda a, t: "{}, {}".format(a, str(len(t))), tiles, ""))
 
 ll, tiles = tiles, []
 for l in ll:
     tiles += l
 
-print(", ".join(map(lambda tile: str(tile), tiles)))
+# print(", ".join(map(lambda tile: str(tile), tiles)))
 # checking neighbors
-print(", ".join(map(lambda tile: tile.description(), tiles[-2:])))
+# print(", ".join(map(lambda tile: tile.description(), tiles[-2:])))
 
 # test sprites
 game = sp.GameView(None)
@@ -48,7 +48,7 @@ def set_remaining_positions(tile_sprites):
 
 not_yet = [] # tile_sprites
 while len(not_yet) > 0:
-    print("{} positions remaining...".format(len(not_yet)))
+    # print("{} positions remaining...".format(len(not_yet)))
     not_yet = set_remaining_positions(not_yet)
 
 # manually set positions of default board

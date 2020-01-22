@@ -52,6 +52,7 @@ class MetaPlayerTurn(MetaState):
         self.players = players
         self.board_stiles = board_stiles
         self.rolled_dice = None
+        self.triggered_action_state = None
 
         self.current_player = 0
         self.current_hand_text = sprites.Text('current hand', 'Comic Sans MS', 20)
@@ -64,13 +65,22 @@ class MetaPlayerTurn(MetaState):
         return self.main_phases[self.current_player]
 
     def NextState(self, previous_state):
-        # if player won:
-        #   game over state
+        if self.triggered_action_state:
+            self.triggered_action_state.DeactivateState()
+            self.triggered_action_state = None
+            self.ActivateState(self.InitialState())
+        else:
+            # if player won:
+            #   game over state
 
-        self.main_phases[self.current_player].DeactivateState()
-        self.main_phases[self.current_player - 1 if self.current_player > 0 else len(self.players) - 1].DeactivateState()
-        self.current_player = self.current_player + 1 if self.current_player < len(self.players) - 1 else 0
-        self.ActivateState(self.InitialState())
+            self.main_phases[self.current_player].DeactivateState()
+            self.main_phases[self.current_player - 1 if self.current_player > 0 else len(self.players) - 1].DeactivateState()
+            self.current_player = self.current_player + 1 if self.current_player < len(self.players) - 1 else 0
+            self.ActivateState(self.InitialState())
+    
+    def TriggerPlayerActionState(self, state):
+        self.triggered_action_state = state
+        self.ActivateState(state)
 
     def GetPlayer(self, player_color):
         for p in self.players:
