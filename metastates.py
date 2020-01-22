@@ -14,7 +14,7 @@ class MetaState():
 
     def ActivateState(self, state):
         state.ActivateState()
-        return state
+        self.gameview.game_state = state
 
 # Opening of the game - each player places one town each etc.
 class MetaPlaceInitialTowns(MetaState):
@@ -30,7 +30,8 @@ class MetaPlaceInitialTowns(MetaState):
     
     def NextState(self, previous_state):
         if len(self.place_town_states) == 0:
-            self.gameview.game_state = MetaPlayerTurn(self.gameview, self.players, self.board_stiles).InitialState()
+            # If all initial towns are placed, activate the main player turn states.
+            self.ActivateState(MetaPlayerTurn(self.gameview, self.players, self.board_stiles).InitialState())
         else:
             # add initial cards.
             if self.gameview.game_state.player.cards.Sum() == 0:
@@ -39,11 +40,12 @@ class MetaPlaceInitialTowns(MetaState):
                     if tile:
                         starting_cards.append(cards.LandCard(tile.type))
                 self.gameview.game_state.player.cards.AddCardsToHand(starting_cards)
-            self.gameview.game_state = self.ActivateState(self.place_town_states.pop(0))
+            self.ActivateState(self.place_town_states.pop(0))
 
     def InitialState(self):
         return self.ActivateState(self.place_town_states.pop(0))
 
+# This meta state handles the normal game turn order.
 class MetaPlayerTurn(MetaState):
     def __init__(self, gameview, players, board_stiles):
         super().__init__(gameview)
@@ -59,15 +61,16 @@ class MetaPlayerTurn(MetaState):
         self.main_phases = list(map(lambda player: gamestates.PlayerMainPhaseState(board_stiles, gameview, self, player, self.gameview.main_phase_key_events), self.players))
     
     def InitialState(self):
-        return self.ActivateState(self.main_phases[self.current_player])
-    
+        return self.main_phases[self.current_player]
+
     def NextState(self, previous_state):
         # if player won:
         #   game over state
 
         self.main_phases[self.current_player].DeactivateState()
+        self.main_phases[self.current_player - 1 if self.current_player > 0 else len(self.players) - 1].DeactivateState()
         self.current_player = self.current_player + 1 if self.current_player < len(self.players) - 1 else 0
-        return self.InitialState()
+        self.ActivateState(self.InitialState())
 
     def GetPlayer(self, player_color):
         for p in self.players:

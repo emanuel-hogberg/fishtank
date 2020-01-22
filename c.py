@@ -85,7 +85,7 @@ scores = gamestates.Scores([
     gamestates.Player((0, 255, 0), "Ellen"), 
     gamestates.Player((0, 0, 255), "Lotta")])
 print("{} begins.".format(scores.RandomStartingPlayer().name))
-game.game_state = metastates.MetaPlaceInitialTowns(game, scores.players, tile_sprites).InitialState()
+metastates.MetaPlaceInitialTowns(game, scores.players, tile_sprites).InitialState()
 
 def_board.InitAllCornerPositions()
 def_board.InitAllEdgePositions()

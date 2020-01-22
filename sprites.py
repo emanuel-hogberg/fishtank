@@ -273,7 +273,12 @@ class Text:
         if not self.removed:
             screen.blit(self.surface, (self.x, self.y))
 
+# text that prints mouse position.
 class MouseText(Text):
+    def __init__(self, text, font_name, size):
+        super().__init__(text, font_name, size)
+        (self.x, self.y, self.font_size) = (800, 750, 10)
+
     def update(self, gameview):
         self.update_text("{},{}".format(gameview.mouse_x, gameview.mouse_y))
 
@@ -295,7 +300,7 @@ class KeyState:
 class KeyRestartEvent(KeyState):
     def update(self, gameview):
         super().update(gameview)
-        if self.keys[game.K_r]:
+        if self.keys[game.K_ESCAPE]:
             gameview.exit_message = "RESTART"
             # trigger a QUIT event
             game.event.post(game.event.Event(game.QUIT))
