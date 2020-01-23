@@ -48,14 +48,80 @@ class Scores:
                 2 * len(list(filter(lambda town: town.is_city and town.player == player, self.towns))) + \
                 len(list(filter(lambda card: card == "1", player.dev_cards)))
 
+class StateTools:
+
+    def ProximalRoadsBelongsToThisPlayer(tile, h, j, player_color):
+        return tile.Road(h) and tile.Road(h).color == player_color \
+            or tile.Road(j) and tile.Road(j).color == player_color
+
+    def ProximalTownsBelongsToThisPlayer(tile, i, j, optional_town, player_color):
+        if optional_town:
+            return  tile.corners[i].town and tile.corners[i].town and tile.corners[i].town.player_color == player_color and tile.corners[i].town == optional_town \
+                or tile and tile.corners[j].town and tile.corners[j].town.player_color == player_color and tile.corners[j].town == optional_town
+        return not tile.corners[i].town is None and not tile.corners[i].town is None and tile.corners[i].town.player_color == player_color \
+                or not tile is None and not tile.corners[j].town is None and tile.corners[j].town.player_color == player_color
+    
+    def ProximalRoadAndNotCloseToTown(corner, player_color):
+        # Check if there is a road for this player adjacent to the target location.
+        tile = corner.tile
+        target = corner.direction_int
+        (i, j) = (target - 1, target)
+
+        if not StateTools.TwoRoadsNextToTown(tile, target):
+            return False
+
+        # Either there needs to be a road at i or j from this tile:
+        if tile.Road(i) and tile.Road(i).player_color == player_color or \
+            tile.Road(j) and tile.Road(j).player_color == player_color:
+            return True
+
+        # Or one of the neighbors from this corner at location target - 3:
+        (neighbor_tile, nt) = StateTools.GetAdjacentTile(tile, i, j)
+        # nt is now the target town location seen from the neighbor tile.
+        if neighbor_tile:
+            # The neighbor town needs a road at location nt or nt - 1:
+            if neighbor_tile.Road(nt) and neighbor_tile.Road(nt).player_color == player_color or \
+                neighbor_tile.Road(nt - 1) and neighbor_tile.Road(nt - 1).player_color == player_color:
+                return True
+
+        return False
+
+    def GetAdjacentTile(tile, i, j):
+        (neighbor_tile, nt) = (tile.edges[i], i - 3)
+        if not neighbor_tile:
+            (neighbor_tile, nt) = (tile.edges[j], j - 3)
+        return (neighbor_tile, nt)
+    
+    def CornerNextToTown(tile, i):
+        return tile.corners[i - 1] and tile.corners[i - 1].HasTown() or \
+            tile.corners[i + 1] and tile.corners[i + 1].HasTown()
+    
+    # Returns True if town location is valid.
+    def TwoRoadsNextToTown(tile, town_id):
+        # When placing a town on a tile next to a road,
+        # there cannot be a town at an adjacent corner.
+        
+        # The basic adjacent corners are:
+        (h, j) = (town_id - 1, town_id + 1 if town_id < len(tile.corners) else 0)
+        if tile.corners[h] and tile.corners[h].HasTown() or \
+            tile.corners[j] and tile.corners[j].HasTown():
+            return False
+
+        # Or, one adjacent tile has a town at location nt - 1 or nt + 1
+        (neighbor_tile, nt) = StateTools.GetAdjacentTile(tile, town_id, j)
+        if neighbor_tile and StateTools.CornerNextToTown(neighbor_tile, nt):
+            return False
+        return True
+
 class PlaceTownState(GameState):
-    def __init__(self, board_stiles, gameview, player, meta_state):
+    def __init__(self, board_stiles, gameview, player, meta_state, must_be_adjacent):
         super().__init__(board_stiles, gameview, meta_state)
         self.player = player
         
         self.pointer = None
         self.status_text = None
         self.placed_town = None
+        self.must_be_adjacent = must_be_adjacent
     
     def ActivateState(self):
         self.pointer = sprites.SPointer()
@@ -64,7 +130,7 @@ class PlaceTownState(GameState):
         self.status_text = sprites.Text('{} please place a town'.format(self.player.name), 'Comic Sans MS', 30)
         self.status_text.color = self.player.color
         (self.status_text.x, self.status_text.y) = (230, 3)
-        self.gameview.all_texts.append(self.status_text)        
+        self.gameview.all_texts.append(self.status_text)
 
     def update(self):
         stiles_hovering = [s for s in self.stiles if s.hover]
@@ -98,10 +164,13 @@ class PlaceTownState(GameState):
             # self.status_text.update_text('-')
 
     def LocationAcceptable(self, stile, corner):
-        for n in corner.neighbor_corners:
-            if not n.town is None:
-                return False
-        return True
+        # Not acceptable if there already is a town in this corner.
+        if corner.HasTown():
+            return False
+
+        # Only acceptable if there is an adjacent road
+        return not self.must_be_adjacent or \
+            StateTools.ProximalRoadAndNotCloseToTown(corner, self.player.color)
         
 class PlaceRoadState(GameState):
     def __init__(self, board_stiles, gameview, player, meta_state, optional_town):
@@ -110,6 +179,9 @@ class PlaceRoadState(GameState):
         
         self.pointer = None
         self.status_text = None
+
+        # The optional town can be provided to let the game state know this is the opening phase of the game.
+        # The road then needs to be placed adjacent to this town.
         self.optional_town = optional_town
     
     def ActivateState(self):
@@ -172,25 +244,14 @@ class PlaceRoadState(GameState):
         if self.optional_town:
             return stile.tile.corners[h] == self.optional_town or stile.tile.corners[j] == self.optional_town
 
-        def ProximalRoadsBelongsToThisPlayer(tile, h, j):
-            return not tile.roads[h] is None and tile.roads[h].color == self.player.color \
-                or not tile.roads[j] is None and tile.roads[j].color == self.player.color
-
-        def ProximalTownsBelongsToThisPlayer(tile, i, j, optional_town):
-            if optional_town:
-                return  tile.corners[i].town and tile.corners[i].town and tile.corners[i].town.player_color == self.player.color and tile.corners[i].town == optional_town \
-                    or tile and tile.corners[j].town and tile.corners[j].town.player_color == self.player.color and tile.corners[j].town == optional_town
-            return not tile.corners[i].town is None and not tile.corners[i].town is None and tile.corners[i].town.player_color == self.player.color \
-                    or not tile is None and not tile.corners[j].town is None and tile.corners[j].town.player_color == self.player.color
-        
         # Ok to place road next to town belonging to this player
-        if ProximalTownsBelongsToThisPlayer(stile.tile, i, j, self.optional_town) or \
-            not neighbor_tile is None and ProximalTownsBelongsToThisPlayer(neighbor_tile, i_n, jn, self.optional_town):
+        if StateTools.ProximalTownsBelongsToThisPlayer(stile.tile, i, j, self.optional_town, self.player.color) or \
+            not neighbor_tile is None and StateTools.ProximalTownsBelongsToThisPlayer(neighbor_tile, i_n, jn, self.optional_town, self.player.color):
             return True
         
-        # proximity to other player road then decides if it's ok or not.
-        return ProximalRoadsBelongsToThisPlayer(stile.tile, h, j) or \
-            (not neighbor_tile is None and ProximalRoadsBelongsToThisPlayer(neighbor_tile, hn, jn))
+        # proximity to player's other roads then decides if it's ok or not.
+        return StateTools.ProximalRoadsBelongsToThisPlayer(stile.tile, h, j, self.player.color) or \
+            (not neighbor_tile is None and StateTools.ProximalRoadsBelongsToThisPlayer(neighbor_tile, hn, jn, self.player.color))
 
 class PlayerRollDiceState(GameState):
     def __init__(self, board_stiles, gameview, meta_state):
@@ -206,7 +267,7 @@ class PlayerMainPhaseState(GameState):
         self.player = player
         self.keys = keys
         self.rolled = False
-        self.rolled_vaule = 0
+        self.rolled_value = 0
     
     def ActivateState(self):
         if self.status_text:
@@ -223,7 +284,7 @@ class PlayerMainPhaseState(GameState):
     def DeactivateState(self):
         if self.status_text:
             self.status_text.y -= 20
-            self.status_text.update_text("{0} rolled {1}. Turn over.".format(self.player.name, self.rolled_vaule))
+            self.status_text.update_text("{0} rolled {1}. Turn over.".format(self.player.name, self.rolled_value))
         self.rolled = False
 
     def UpdatePlayerState(self):
@@ -244,7 +305,7 @@ class PlayerMainPhaseState(GameState):
             # player turn: roll the dice or play knight (if no knight available, roll automatically)
             if self.player.dev_cards.knights == 0 or self.keys.roll:
                 self.rolled_value = self.RollDice()
-                self.PrintPlayerOptions()
+                self.UpdatePlayerState()
                 self.rolled = True
         
         if self.rolled:
@@ -260,7 +321,7 @@ class PlayerMainPhaseState(GameState):
                 self.player.cards.wood -= 1
                 self.player.cards.wheat -= 1
                 self.player.cards.sheep
-                self.meta_state.TriggerPlayerActionState(PlaceTownState(self.stiles, self.gameview, self.player, self.meta_state))
+                self.meta_state.TriggerPlayerActionState(PlaceTownState(self.stiles, self.gameview, self.player, self.meta_state, True))
                 self.UpdatePlayerState()
             if self.player.cards.CanBuildCity() and self.keys.build_city:
                 self.player.cards.stone -= 3

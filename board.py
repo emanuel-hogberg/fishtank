@@ -38,11 +38,11 @@ class HexDirection(Enum):
     NW = 5
 
 def SW(upper_right, lower_left):
-    upper_right.neighbor(lower_left, HexDirection.SW)
+    upper_right.SetNeighbor(lower_left, HexDirection.SW)
 def SE(upper_left, lower_right):
-    upper_left.neighbor(lower_right, HexDirection.SE)
+    upper_left.SetNeighbor(lower_right, HexDirection.SE)
 def E(left, right):
-    left.neighbor(right, HexDirection.E)
+    left.SetNeighbor(right, HexDirection.E)
 
 class Tile:
     def __init__(self, name):
@@ -69,9 +69,15 @@ class Tile:
         self.stile = None
         self.harbour = None
     
-    def neighbor(self, tile, direction):
+    def SetNeighbor(self, tile, direction):
         self.edges[direction.value] = tile
         tile.edges[direction.value - 3] = self
+
+    # Get road at location i
+    def Road(self, i):
+        return \
+            self.roads[i] if self.roads[i] else \
+            self.edges[i].roads[i - 3] if self.edges[i] else None
 
     def __str__(self):
         return ('{} {} ({})'.format(self.type, self.value, self.name)) if self.value > -1 else str(self.name)
@@ -142,6 +148,12 @@ class Corner:
 
     def distance_to_point(self, x, y):
         return math.sqrt( (x - self.position[0]) ** 2 + (y - self.position[1]) ** 2)
+
+    def HasTown(self):
+        for n in self.neighbor_corners:
+            if n.town:
+                return True
+        return False
 
 class Harbour:
     def __init__(self, tile, edge_id, land_type):

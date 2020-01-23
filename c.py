@@ -5,7 +5,6 @@ from functools import reduce
 import sprites as sp
 import random
 import default_board
-
 import gamestates
 import metastates
 
