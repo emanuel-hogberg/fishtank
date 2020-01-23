@@ -59,6 +59,39 @@ class BoardCreation():
         return new_row
 
     def CreateCorners(self, tiles):
+        # Find or create all corners.
+        def AddCorners(tile):
+            for i in range(6):
+                if not tile.corners[i]:
+                    # find corner from neighboring tiles
+                    c = None
+                    (h, j) = (i - 1 if i > 0 else 5, i + 1 if i < 5 else 0)
+                    if tile.edges[h]:
+                        c = tile.edges[h].corners[i - 3] # i-3 är nog fel
+                    elif tile.edges[i]:
+                        c = tile.edges[i].corners[i - 3] # i-3 är nog fel
+                    
+                    # or create a new corner.
+                    tile.corners[i] = c if c else Corner(tile, i)
+                    
+                    # add neighbors.
+                    def AddNeighbors(c, d):
+                        if d and not c in d.neighbor_corners:
+                            d.neighbor_corners.append(c)
+                            print("a) {0}-{1} added to {2}-{3}'s neighbor list".format(c.tile.name, c.direction_int, d.tile.name, d.direction_int))
+                        if d and not d in c.neighbor_corners:
+                            c.neighbor_corners.append(d)
+                            print("b) {0}-{1} added to {2}-{3}'s neighbor list".format(c.tile.name, c.direction_int, d.tile.name, d.direction_int))
+
+                    AddNeighbors(tile.corners[i], tile.corners[h])
+                    AddNeighbors(tile.corners[i], tile.corners[j])
+                    
+        
+        for tile_row in tiles:
+            for tile in tile_row:
+                AddCorners(tile)
+
+    def CreateCorners_(self, tiles):
         for tile_row in tiles:
             for tile in tile_row:
                 i = 0

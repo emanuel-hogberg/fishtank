@@ -126,14 +126,10 @@ class Corner:
         
         # quick and dirty implementation
         def FindNeighborCorners(this_corner, tile, found_neighbors):
-            this_index = -1
-            for i in range(0, len(tile.corners)):
-                if tile.corners[i] == this_corner:
-                    this_index = i
-                    break
+            this_index = this_corner.direction_int
+
             def AddIfNotIn(tile, index, found_neighbors):
-                if not tile.corners[index] is None:
-                    if not tile.corners[index] in found_neighbors:
+                if tile.corners[index] and not tile.corners[index] in found_neighbors:
                         found_neighbors.append(tile.corners[index])
             
             AddIfNotIn(tile, this_index - 1 if this_index > 0 else 5, found_neighbors)
@@ -150,6 +146,8 @@ class Corner:
         return math.sqrt( (x - self.position[0]) ** 2 + (y - self.position[1]) ** 2)
 
     def HasTown(self):
+        s = self.tile.name + " w value " + str(self.tile.value) + " dir " + str(self.direction_int)
+        ls = list(map(lambda c: c.tile.name + " w value " + str(c.tile.value) + " dir " + str(c.direction_int), self.neighbor_corners))
         for n in self.neighbor_corners:
             if n.town:
                 return True
