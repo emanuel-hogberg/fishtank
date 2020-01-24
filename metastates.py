@@ -26,7 +26,7 @@ class MetaPlaceInitialTowns(MetaState):
         for player in players + list(reversed(players)):
             place_town = gamestates.PlaceTownState(board_stiles, gameview, player, self, False)
             self.place_town_states.append(place_town)
-            self.place_town_states.append(gamestates.PlaceRoadState(board_stiles, gameview, player, self, place_town.placed_town))
+            self.place_town_states.append(gamestates.PlaceRoadState(board_stiles, gameview, player, self, place_town))
     
     def NextState(self, previous_state):
         if len(self.place_town_states) == 0:
