@@ -59,32 +59,57 @@ class BoardCreation():
         return new_row
 
     def CreateCorners(self, tiles):
+        print("0-1 means tile name 0, direction 1")
         # Find or create all corners.
         def AddCorners(tile):
             for i in range(6):
-                if not tile.corners[i]:
+                c = tile.corners[i]
+                (h, j) = (i - 1 if i > 0 else 5, i + 1 if i < 5 else 0)
+
+                if not c:
                     # find corner from neighboring tiles
-                    c = None
-                    (h, j) = (i - 1 if i > 0 else 5, i + 1 if i < 5 else 0)
+
+                    # Corner 0 becomes corner 4 seen from tile neighbor 0
+                    def NeighborCornerIndex(corner_index, neighbor_index):
+                        #return [(0, 4), (1, 5), (2, 0), (3, 1), (4, 2), (5, 3)][corner_index][1] if neighbor_index == corner_index else \
+                        #    [(5, 2), (0, 3), (1, 4), (2, 5), (3, 0), (4, 1)][neighbor_index][1]
+                        i = corner_index + 4 if corner_index == neighbor_index else \
+                            neighbor_index - 3
+                        if i < 0:
+                            return i + 6
+                        if i > 5:
+                            return i - 6
+                        return i
+
                     if tile.edges[h]:
-                        c = tile.edges[h].corners[i - 3] # i-3 är nog fel
-                    elif tile.edges[i]:
-                        c = tile.edges[i].corners[i - 3] # i-3 är nog fel
+                        c = tile.edges[h].corners[NeighborCornerIndex(i, h)]
+                        if c:
+                            print("Found corner {0}-{1} from left neighbor {2}".format(tile.name, c.direction_int, tile.edges[h].name))
+                    if not c and tile.edges[i]:
+                        c = tile.edges[i].corners[NeighborCornerIndex(i, i)]
+                        if c:
+                            print("Found corner {0}-{1} from right neighbor {2}".format(tile.name, c.direction_int, tile.edges[i].name))
                     
                     # or create a new corner.
-                    tile.corners[i] = c if c else Corner(tile, i)
+                    if not c:
+                        c = Corner(tile, i)
+                        print("Created corner {0}-{1}".format(tile.name, c.direction_int))
+                        self.all_corners.append(c)
+                    tile.corners[i] = c
+                else:
+                    print("Corner {0}-{1} already existed: {2}-{3}!".format(tile.name, i, c.tile.name, c.direction_int))
                     
-                    # add neighbors.
-                    def AddNeighbors(c, d):
-                        if d and not c in d.neighbor_corners:
-                            d.neighbor_corners.append(c)
-                            print("a) {0}-{1} added to {2}-{3}'s neighbor list".format(c.tile.name, c.direction_int, d.tile.name, d.direction_int))
-                        if d and not d in c.neighbor_corners:
-                            c.neighbor_corners.append(d)
-                            print("b) {0}-{1} added to {2}-{3}'s neighbor list".format(c.tile.name, c.direction_int, d.tile.name, d.direction_int))
+                # add neighbors.
+                def AddNeighbors(c, d):
+                    if d and not c in d.neighbor_corners:
+                        d.neighbor_corners.append(c)
+                        print("a) {0}-{1} added to {2}-{3}'s neighbor list".format(c.tile.name, c.direction_int, d.tile.name, d.direction_int))
+                    if d and not d in c.neighbor_corners:
+                        c.neighbor_corners.append(d)
+                        print("b) {0}-{1} added to {2}-{3}'s neighbor list".format(d.tile.name, d.direction_int, c.tile.name, c.direction_int))
 
-                    AddNeighbors(tile.corners[i], tile.corners[h])
-                    AddNeighbors(tile.corners[i], tile.corners[j])
+                AddNeighbors(tile.corners[i], tile.corners[h])
+                AddNeighbors(tile.corners[i], tile.corners[j])
                     
         
         for tile_row in tiles:
@@ -103,7 +128,7 @@ class BoardCreation():
         for tile_row in tiles:
             for tile in tile_row:
                 for corner in tile.corners:
-                    corner.InitCornerNeighbors()   
+                    corner.InitCornerNeighbors_()   
     
     def InitAllCornerPositions(self):
         for c in self.all_corners:

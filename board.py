@@ -122,7 +122,7 @@ class Corner:
             5: (tx, ty)
         }.get(self.direction_int)
     
-    def InitCornerNeighbors(self):
+    def InitCornerNeighbors_(self):
         
         # quick and dirty implementation
         def FindNeighborCorners(this_corner, tile, found_neighbors):
@@ -146,12 +146,13 @@ class Corner:
         return math.sqrt( (x - self.position[0]) ** 2 + (y - self.position[1]) ** 2)
 
     def HasTown(self):
-        s = self.tile.name + " w value " + str(self.tile.value) + " dir " + str(self.direction_int)
-        ls = list(map(lambda c: c.tile.name + " w value " + str(c.tile.value) + " dir " + str(c.direction_int), self.neighbor_corners))
-        for n in self.neighbor_corners:
-            if n.town:
-                return True
-        return False
+        return not self.town is None
+        # s = self.tile.name + " w value " + str(self.tile.value) + " dir " + str(self.direction_int)
+        # ls = list(map(lambda c: c.tile.name + " w value " + str(c.tile.value) + " dir " + str(c.direction_int), self.neighbor_corners))
+        # for n in self.neighbor_corners:
+        #     if n.town:
+        #         return True
+        # return False
 
 class Harbour:
     def __init__(self, tile, edge_id, land_type):
