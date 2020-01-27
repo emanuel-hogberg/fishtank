@@ -117,7 +117,7 @@ class StateTools:
         return True
 
 class PlaceTownState(GameState):
-    def __init__(self, board_stiles, gameview, player, meta_state, must_be_adjacent):
+    def __init__(self, board_stiles, gameview, player, meta_state, must_be_adjacent, cancel_action_key):
         super().__init__(board_stiles, gameview, meta_state)
         self.player = player
         
@@ -125,6 +125,7 @@ class PlaceTownState(GameState):
         self.status_text = None
         self.placed_town = None
         self.must_be_adjacent = must_be_adjacent
+        self.cancel_action_key = cancel_action_key
     
     def ActivateState(self):
         self.pointer = sprites.SPointer()
@@ -136,6 +137,17 @@ class PlaceTownState(GameState):
         self.gameview.all_texts.append(self.status_text)
 
     def update(self):
+
+        if self.cancel_action_key and self.cancel_action_key.cancel:
+            self.placed_town = None
+            self.CleanupState()
+            self.player.cards.brick += 1
+            self.player.cards.wood += 1
+            self.player.cards.sheep += 1
+            self.player.cards.wheat += 1
+            self.meta_state.NextState(self)
+            return
+
         stiles_hovering = [s for s in self.stiles if s.hover]
         if len(stiles_hovering) > 0:
             stile = stiles_hovering[0]
@@ -156,8 +168,7 @@ class PlaceTownState(GameState):
                 if stile.clicked:
                     if self.LocationAcceptable(stile, closest_corner):
                         self.gameview.AddSprite(sprites.STown(self.player.color, closest_corner), self.z_mid)
-                        self.gameview.RemoveSprite(self.pointer, self.z_front)
-                        self.gameview.all_texts.remove(self.status_text)
+                        self.CleanupState()
                         self.placed_town = closest_corner.town
                         self.meta_state.NextState(self)
                     else:
@@ -165,6 +176,10 @@ class PlaceTownState(GameState):
         else:
             self.pointer.hide = True
             # self.status_text.update_text('-')
+
+    def CleanupState(self):
+        self.gameview.RemoveSprite(self.pointer, self.z_front)
+        self.gameview.all_texts.remove(self.status_text)
 
     def LocationAcceptable(self, stile, corner):
         # Not acceptable if there already is a town in this corner.
@@ -178,7 +193,7 @@ class PlaceTownState(GameState):
         return StateTools.ProximalRoadAndNotCloseToTown(corner, self.player.color)
         
 class PlaceRoadState(GameState):
-    def __init__(self, board_stiles, gameview, player, meta_state, preceding_town_state):
+    def __init__(self, board_stiles, gameview, player, meta_state, preceding_town_state, cancel_action_key):
         super().__init__(board_stiles, gameview, meta_state)
         self.player = player
         
@@ -189,6 +204,7 @@ class PlaceRoadState(GameState):
         # The road then needs to be placed adjacent to this town.
         self.preceding_town_state = preceding_town_state
         self.optional_town = None
+        self.cancel_action_key = cancel_action_key
     
     def ActivateState(self):
         self.pointer = sprites.SPointer()
@@ -205,6 +221,13 @@ class PlaceRoadState(GameState):
         return math.sqrt( (x - p2[0]) ** 2 + (y - p2[1]) ** 2)
 
     def update(self):
+        if self.cancel_action_key and self.cancel_action_key.cancel:
+            self.CleanupState()
+            self.player.cards.brick += 1
+            self.player.cards.wood += 1
+            self.meta_state.NextState(self)
+            return
+
         stiles_hovering = [s for s in self.stiles if s.hover]
         if len(stiles_hovering) > 0:
             stile = stiles_hovering[0]
@@ -224,14 +247,16 @@ class PlaceRoadState(GameState):
                 if stile.clicked:
                     if self.LocationAcceptable(stile, closest_edge_id):
                         self.gameview.AddSprite(sprites.SRoad(stile.tile, self.player.color, closest_edge_id), self.z_mid)
-                        self.gameview.RemoveSprite(self.pointer, self.z_front)
-                        self.gameview.all_texts.remove(self.status_text)
+                        self.CleanupState()
                         self.meta_state.NextState(self)
                     else:
                         self.status_text.text = "Oh no, location not legal. try again pls"
         else:
             self.pointer.hide = True
             # self.status_text.update_text('-')
+    def CleanupState(self):
+        self.gameview.RemoveSprite(self.pointer, self.z_front)
+        self.gameview.all_texts.remove(self.status_text)
 
     def LocationAcceptable(self, stile, edge_id):
         return stile.tile.roads[edge_id] is None
@@ -271,13 +296,15 @@ class PlayerRollDiceState(GameState):
         pass
 
 class PlayerMainPhaseState(GameState):
-    def __init__(self, board_stiles, gameview, meta_state, player, keys):
+    def __init__(self, board_stiles, gameview, meta_state, player, keys, cancel_action_key):
         super().__init__(board_stiles, gameview, meta_state)
         self.status_text = None
         self.player = player
         self.keys = keys
         self.rolled = False
         self.rolled_value = 0
+        self.cancel_action_key = cancel_action_key
+        self.action_underway = False
     
     def ActivateState(self):
         if self.status_text:
@@ -310,6 +337,9 @@ class PlayerMainPhaseState(GameState):
 
     def update(self):
         
+        if self.action_underway:
+            self.UpdatePlayerState()
+
         if not self.rolled and not self.keys.next_player:
             
             # player turn: roll the dice or play knight (if no knight available, roll automatically)
@@ -324,26 +354,30 @@ class PlayerMainPhaseState(GameState):
             if self.player.cards.CanBuildRoad() and self.keys.build_road:
                 self.player.cards.brick -= 1
                 self.player.cards.wood -= 1
-                self.meta_state.TriggerPlayerActionState(PlaceRoadState(self.stiles, self.gameview, self.player, self.meta_state, None))
+                self.meta_state.TriggerPlayerActionState(PlaceRoadState(self.stiles, self.gameview, self.player, self.meta_state, None, self.cancel_action_key))
+                self.action_underway = True
                 self.UpdatePlayerState()
             if self.player.cards.CanBuildTown() and self.keys.build_town:
                 self.player.cards.brick -= 1
                 self.player.cards.wood -= 1
                 self.player.cards.wheat -= 1
                 self.player.cards.sheep
-                self.meta_state.TriggerPlayerActionState(PlaceTownState(self.stiles, self.gameview, self.player, self.meta_state, True))
+                self.meta_state.TriggerPlayerActionState(PlaceTownState(self.stiles, self.gameview, self.player, self.meta_state, True, self.cancel_action_key))
                 self.UpdatePlayerState()
+                self.action_underway = True
             if self.player.cards.CanBuildCity() and self.keys.build_city:
                 self.player.cards.stone -= 3
                 self.player.cards.wheat -= 2
                 #self.meta_state.TriggerPlayerActionState(ChooseCityState(self.stiles, self.gameview, self.player, self, None))
                 self.UpdatePlayerState()
+                self.action_underway = True
             if self.player.cards.CanBuyDevCard() and self.keys.buy_development_card:
                 self.player.cards.stone -= 1
                 self.player.cards.wheat -= 1
                 self.player.cards.sheep -= 1
                 # buy dev card (not implemented)
                 self.UpdatePlayerState()
+                self.action_underway = True
 
             # use dev cards
 

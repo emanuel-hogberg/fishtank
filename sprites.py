@@ -300,7 +300,7 @@ class KeyState:
 class KeyRestartEvent(KeyState):
     def update(self, gameview):
         super().update(gameview)
-        if self.keys[game.K_ESCAPE]:
+        if self.keys[game.K_BACKSPACE]:
             gameview.exit_message = "RESTART"
             # trigger a QUIT event
             game.event.post(game.event.Event(game.QUIT))
@@ -313,6 +313,16 @@ class KeyQuitEvent(KeyState):
             gameview.exit_message = "QUIT"
             # trigger a QUIT event
             game.event.post(game.event.Event(game.QUIT))
+
+class KeyCancelActionEvent(KeyState):
+    def __init__(self):
+        super().__init__()
+
+        self.cancel = False
+
+    def update(self, gameview):
+        super().update(gameview)
+        self.cancel = self.keys[game.K_ESCAPE]
 
 class KeyMainPhaseEvents(KeyState):
     def __init__(self):
@@ -349,6 +359,7 @@ class GameView:
         self.clicked_sprites = []
         self.main_phase_key_events = KeyMainPhaseEvents()
         self.all_texts = []
+        self.keys = []
         self.exit_message = ""
         self.game_state = starting_state
         self.z_layers = [
@@ -382,7 +393,7 @@ class GameView:
         if any(filter(lambda sprite: sprite.z_layer is None, self.all_sprites)):
             raise Exception("z_layer {} has not been added through gameView.AddSprite()!")
         
-        keys = [KeyRestartEvent(), KeyQuitEvent(), self.main_phase_key_events]
+        self.keys = [KeyRestartEvent(), KeyQuitEvent(), self.main_phase_key_events]
 
         # Loop until the user clicks the close button.
         done = False
@@ -409,7 +420,7 @@ class GameView:
             self.mouse_clicked = any(self.clicked_sprites)
 
             # update keys
-            [k.update(self) for k in keys]
+            [k.update(self) for k in self.keys]
             
             # set all sprite clicked states
             for s in [s for s in self.all_sprites]:

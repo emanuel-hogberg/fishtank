@@ -24,9 +24,9 @@ class MetaPlaceInitialTowns(MetaState):
         self.board_stiles = board_stiles
         self.place_town_states = list()
         for player in players + list(reversed(players)):
-            place_town = gamestates.PlaceTownState(board_stiles, gameview, player, self, False)
+            place_town = gamestates.PlaceTownState(board_stiles, gameview, player, self, False, None)
             self.place_town_states.append(place_town)
-            self.place_town_states.append(gamestates.PlaceRoadState(board_stiles, gameview, player, self, place_town))
+            self.place_town_states.append(gamestates.PlaceRoadState(board_stiles, gameview, player, self, place_town, None))
     
     def NextState(self, previous_state):
         if len(self.place_town_states) == 0:
@@ -58,8 +58,10 @@ class MetaPlayerTurn(MetaState):
         self.current_hand_text = sprites.Text('current hand', 'Comic Sans MS', 20)
         (self.current_hand_text.x, self.current_hand_text.y) = (36, 600)
         self.gameview.all_texts.append(self.current_hand_text)
+        cancel_action_key = sprites.KeyCancelActionEvent()
+        self.gameview.keys.append(cancel_action_key)
 
-        self.main_phases = list(map(lambda player: gamestates.PlayerMainPhaseState(board_stiles, gameview, self, player, self.gameview.main_phase_key_events), self.players))
+        self.main_phases = list(map(lambda player: gamestates.PlayerMainPhaseState(board_stiles, gameview, self, player, self.gameview.main_phase_key_events, cancel_action_key), self.players))
     
     def InitialState(self):
         return self.main_phases[self.current_player]
